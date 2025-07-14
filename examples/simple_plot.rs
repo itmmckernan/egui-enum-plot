@@ -29,9 +29,9 @@ fn main() {
         "Example Enum Plot",
         native_options,
         Box::new(|cc| {
-            Box::new(MyApp {
+            Ok(Box::new(MyApp {
                 ctx: cc.egui_ctx.clone(),
-            })
+            }))
         }),
     );
 }
@@ -72,7 +72,7 @@ impl eframe::App for MyApp {
 
             enum_plot.show(ui, plot, |plot_ui| {
                 let plot_points = PlotPoints::Owned(analog_data);
-                let line = Line::new(plot_points).name("Data");
+                let line = Line::new("Data", plot_points);
                 plot_ui.line(line);
             });
         });
