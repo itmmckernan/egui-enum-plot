@@ -115,6 +115,11 @@ impl EnumPlotUi {
         self.lines.push(Box::new(plot_line));
 
     }
+    
+    pub fn add_custom_plot(&mut self, name: String, plottable: impl EnumPlotLineTrait + 'static) {
+        self.names.push(name);
+        self.lines.push(Box::new(plottable));
+    }
 }
 
 pub struct EnumPlot {
