@@ -59,7 +59,7 @@ impl<T: EnumPlottable> EnumPlotLine<T> {
     }
 }
 
-trait EnumPlotLineTrait {
+pub trait EnumPlotLineTrait {
     fn get_edges_and_labels(&self) -> Vec<(f64, String)>;
 }
 
