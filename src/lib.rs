@@ -59,6 +59,7 @@ impl<T: EnumPlottable> EnumPlotLine<T> {
     }
 }
 
+//todo swap this to be an iter like thing to avoid a ton of allocs
 pub trait EnumPlotLineTrait {
     fn get_edges_and_labels(&self) -> Vec<(f64, String)>;
 }
@@ -86,6 +87,7 @@ pub struct EnumPlotUiStyle {
     pub transition_len: f32,
     pub line_style: Stroke,
     pub side_margin: f32,
+    pub hover_text: bool
 }
 
 impl EnumPlotUiStyle {
@@ -99,6 +101,7 @@ impl EnumPlotUiStyle {
             text_height: 15.0,
             text_color: ui.ctx().style().noninteractive().text_color(),
             side_margin: 75.0,
+            hover_text: false,
         }
     }
 }
@@ -185,6 +188,10 @@ impl EnumPlot {
 
                     let text_pos = pos2((x_val_start_clipped + x_val_end_clipped) / 2.0, top_y_val + self.style.line_height / 2.0);
                     let max_text_bb = Rect::from_center_size(text_pos, vec2(x_val_end_clipped - x_val_start_clipped - cross_x_offset, self.style.line_height));
+                    if self.style.hover_text {
+                        let res = ui.allocate_rect(max_text_bb, Sense::hover());
+                        res.on_hover_text_at_pointer(&edges[0].1.clone());
+                    }
                     if let Some(galley) = best_fit_font(ui.ctx(), &edges[0].1.clone(), max_text_bb, 1.0, self.style.text_color, &id) {
                         painter.galley(text_pos - galley.rect.center().to_vec2(), galley, self.style.text_color);
                     }
