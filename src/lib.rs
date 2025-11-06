@@ -1,8 +1,7 @@
 #![feature(min_specialization)]
-use std::{fmt::Display, sync::Arc};
-use egui::{pos2, vec2, Color32, FontFamily, FontId, Galley, Rect, Sense, Stroke};
+use egui::{Color32, FontFamily, FontId, Galley, Rect, Sense, Stroke, pos2, vec2};
 use egui_plot::{Plot, PlotResponse, PlotUi};
-
+use std::{fmt::Display, sync::Arc};
 
 pub trait EnumPlottable: PartialEq {
     fn display(&self) -> String;
@@ -10,8 +9,9 @@ pub trait EnumPlottable: PartialEq {
 
 impl<T> EnumPlottable for T
 where
-    T: Display + PartialEq {
-        default fn display(&self) -> String {
+    T: Display + PartialEq,
+{
+    default fn display(&self) -> String {
         format!("{}", self)
     }
 }
@@ -20,9 +20,7 @@ where
 impl EnumPlottable for f64 {
     fn display(&self) -> String {
         let s = format!("{:.3}", self);
-        s.trim_end_matches('0')
-             .trim_end_matches('.')
-             .to_string()
+        s.trim_end_matches('0').trim_end_matches('.').to_string()
     }
 }
 
@@ -30,32 +28,27 @@ impl EnumPlottable for f64 {
 impl EnumPlottable for f32 {
     fn display(&self) -> String {
         let s = format!("{:.3}", self);
-        s.trim_end_matches('0')
-             .trim_end_matches('.')
-             .to_string()
+        s.trim_end_matches('0').trim_end_matches('.').to_string()
     }
 }
 
 #[cfg(feature = "debug_impl")]
 impl<T> EnumPlottable for T
 where
-    T: Debug + Eq {
-        default fn display(&self) -> String {
+    T: Debug + Eq,
+{
+    default fn display(&self) -> String {
         format!("{}", self)
     }
 }
 
-
-
 pub struct EnumPlotLine<T: EnumPlottable> {
-    points: Vec<(f64, T)>
+    points: Vec<(f64, T)>,
 }
 
 impl<T: EnumPlottable> EnumPlotLine<T> {
     pub fn new(points: Vec<(f64, T)>) -> Self {
-        EnumPlotLine {
-            points,
-        }
+        EnumPlotLine { points }
     }
 }
 
@@ -68,10 +61,10 @@ impl<T: EnumPlottable> EnumPlotLineTrait for EnumPlotLine<T> {
     fn get_edges_and_labels(&self) -> Vec<(f64, String)> {
         //the mins and maxes are needed for the painter to work properly
         let mut out_vec = vec![(f32::MIN as f64, self.points.first().unwrap().1.display())];
-        out_vec.extend(self.points.windows(2)
-            .filter_map(|e| {
-                (e[0].1 != e[1].1).then(|| (e[0].0, e[1].1.display()))
-            })
+        out_vec.extend(
+            self.points
+                .windows(2)
+                .filter_map(|e| (e[0].1 != e[1].1).then(|| (e[0].0, e[1].1.display()))),
         );
         out_vec.push((f32::MAX as f64, self.points.last().unwrap().1.display()));
         out_vec
@@ -87,7 +80,7 @@ pub struct EnumPlotUiStyle {
     pub transition_len: f32,
     pub line_style: Stroke,
     pub side_margin: f32,
-    pub hover_text: bool
+    pub hover_text: bool,
 }
 
 impl EnumPlotUiStyle {
@@ -113,12 +106,13 @@ pub struct EnumPlotUi {
 
 impl EnumPlotUi {
     pub fn add_line<T>(&mut self, name: String, plot_line: EnumPlotLine<T>)
-    where T: EnumPlottable + 'static {
+    where
+        T: EnumPlottable + 'static,
+    {
         self.names.push(name);
         self.lines.push(Box::new(plot_line));
-
     }
-    
+
     pub fn add_custom_plot(&mut self, name: String, plottable: impl EnumPlotLineTrait + 'static) {
         self.names.push(name);
         self.lines.push(Box::new(plottable));
@@ -127,15 +121,14 @@ impl EnumPlotUi {
 
 pub struct EnumPlot {
     pub style: EnumPlotUiStyle,
-    enum_plot_ui: Option<EnumPlotUi>
+    enum_plot_ui: Option<EnumPlotUi>,
 }
-
 
 impl EnumPlot {
     pub fn new(ui: &mut egui::Ui) -> Self {
-        EnumPlot { 
+        EnumPlot {
             style: EnumPlotUiStyle::new(ui),
-            enum_plot_ui: None
+            enum_plot_ui: None,
         }
     }
 
@@ -146,26 +139,35 @@ impl EnumPlot {
         };
         enum_build_fn(&mut enum_plot_ui);
         self.enum_plot_ui = Some(enum_plot_ui);
-
     }
-    pub fn show<R>(&self, ui: &mut egui::Ui, plot: Plot, plot_build_fn: impl FnOnce(&mut PlotUi) -> R) -> PlotResponse<R>{
+    pub fn show<R>(
+        &self,
+        ui: &mut egui::Ui,
+        plot: Plot,
+        plot_build_fn: impl FnOnce(&mut PlotUi) -> R,
+    ) -> PlotResponse<R> {
         if let Some(enum_plot_ui) = &self.enum_plot_ui {
             let line_count = enum_plot_ui.lines.len();
-            let vertical_space_needed = line_count as f32 * self.style.line_height + 
-                                            line_count.saturating_sub(1) as f32 * self.style.line_spacing + 
-                                            2.0 * self.style.margin;
+            let vertical_space_needed = line_count as f32 * self.style.line_height
+                + line_count.saturating_sub(1) as f32 * self.style.line_spacing
+                + 2.0 * self.style.margin;
             let plot_height = ui.available_height() - vertical_space_needed;
             let plot = plot.height(plot_height);
             let plot_ret = plot.show(ui, plot_build_fn);
-            
-            let id = FontId { size: self.style.text_height, family: FontFamily::default() };
+
+            let id = FontId {
+                size: self.style.text_height,
+                family: FontFamily::default(),
+            };
 
             //todo make hover work nicely
             let (response, painter) = ui.allocate_painter(ui.available_size(), Sense::hover());
             for (i, line) in enum_plot_ui.lines.iter().enumerate() {
                 let edges = line.get_edges_and_labels();
                 //todo add screen occlusion checking here, to avoid rendering stuff far off screen
-                let top_y_val = response.rect.top() + self.style.margin + (self.style.line_height + self.style.line_spacing) * i as f32;
+                let top_y_val = response.rect.top()
+                    + self.style.margin
+                    + (self.style.line_height + self.style.line_spacing) * i as f32;
                 for (j, edges) in edges.windows(2).enumerate() {
                     let x_val_start = plot_ret.transform.position_from_point_x(edges[0].0);
                     let x_val_end = plot_ret.transform.position_from_point_x(edges[1].0);
@@ -174,26 +176,102 @@ impl EnumPlot {
                     let x_val_start_clipped = x_val_start_clip.clamp(x_val_start);
                     let x_val_end_clipped = ui.clip_rect().x_range().clamp(x_val_end);
 
-                    let cross_x_offset = (self.style.transition_len / 100.0 * ui.clip_rect().x_range().span() / 2.0).min((x_val_end_clipped - x_val_start_clipped) * 0.5) / 2.0;
+                    let cross_x_offset =
+                        (self.style.transition_len / 100.0 * ui.clip_rect().x_range().span() / 2.0)
+                            .min((x_val_end_clipped - x_val_start_clipped) * 0.5)
+                            / 2.0;
                     if j != 0 {
-                        painter.line_segment([pos2(x_val_start_clipped + cross_x_offset , top_y_val), pos2(x_val_start_clipped, top_y_val + self.style.line_height / 2.0)], self.style.line_style);
-                        painter.line_segment([pos2(x_val_start_clipped + cross_x_offset , top_y_val + self.style.line_height), pos2(x_val_start_clipped, top_y_val + self.style.line_height / 2.0)], self.style.line_style);
+                        painter.line_segment(
+                            [
+                                pos2(x_val_start_clipped + cross_x_offset, top_y_val),
+                                pos2(
+                                    x_val_start_clipped,
+                                    top_y_val + self.style.line_height / 2.0,
+                                ),
+                            ],
+                            self.style.line_style,
+                        );
+                        painter.line_segment(
+                            [
+                                pos2(
+                                    x_val_start_clipped + cross_x_offset,
+                                    top_y_val + self.style.line_height,
+                                ),
+                                pos2(
+                                    x_val_start_clipped,
+                                    top_y_val + self.style.line_height / 2.0,
+                                ),
+                            ],
+                            self.style.line_style,
+                        );
                     }
-                    painter.line_segment([pos2(cross_x_offset + x_val_start_clipped, top_y_val), pos2(x_val_end_clipped - cross_x_offset, top_y_val)], self.style.line_style);
-                    painter.line_segment([pos2(cross_x_offset + x_val_start_clipped, top_y_val + self.style.line_height), pos2(x_val_end_clipped - cross_x_offset, top_y_val + self.style.line_height)], self.style.line_style);
-                    
+                    painter.line_segment(
+                        [
+                            pos2(cross_x_offset + x_val_start_clipped, top_y_val),
+                            pos2(x_val_end_clipped - cross_x_offset, top_y_val),
+                        ],
+                        self.style.line_style,
+                    );
+                    painter.line_segment(
+                        [
+                            pos2(
+                                cross_x_offset + x_val_start_clipped,
+                                top_y_val + self.style.line_height,
+                            ),
+                            pos2(
+                                x_val_end_clipped - cross_x_offset,
+                                top_y_val + self.style.line_height,
+                            ),
+                        ],
+                        self.style.line_style,
+                    );
 
-                    painter.line_segment([pos2(x_val_end_clipped - cross_x_offset , top_y_val), pos2(x_val_end_clipped, top_y_val + self.style.line_height / 2.0)], self.style.line_style);
-                    painter.line_segment([pos2(x_val_end_clipped - cross_x_offset , top_y_val + self.style.line_height), pos2(x_val_end_clipped, top_y_val + self.style.line_height / 2.0)], self.style.line_style);
+                    painter.line_segment(
+                        [
+                            pos2(x_val_end_clipped - cross_x_offset, top_y_val),
+                            pos2(x_val_end_clipped, top_y_val + self.style.line_height / 2.0),
+                        ],
+                        self.style.line_style,
+                    );
+                    painter.line_segment(
+                        [
+                            pos2(
+                                x_val_end_clipped - cross_x_offset,
+                                top_y_val + self.style.line_height,
+                            ),
+                            pos2(x_val_end_clipped, top_y_val + self.style.line_height / 2.0),
+                        ],
+                        self.style.line_style,
+                    );
 
-                    let text_pos = pos2((x_val_start_clipped + x_val_end_clipped) / 2.0, top_y_val + self.style.line_height / 2.0);
-                    let max_text_bb = Rect::from_center_size(text_pos, vec2(x_val_end_clipped - x_val_start_clipped - cross_x_offset, self.style.line_height));
+                    let text_pos = pos2(
+                        (x_val_start_clipped + x_val_end_clipped) / 2.0,
+                        top_y_val + self.style.line_height / 2.0,
+                    );
+                    let max_text_bb = Rect::from_center_size(
+                        text_pos,
+                        vec2(
+                            x_val_end_clipped - x_val_start_clipped - cross_x_offset,
+                            self.style.line_height,
+                        ),
+                    );
                     if self.style.hover_text {
                         let res = ui.allocate_rect(max_text_bb, Sense::hover());
                         res.on_hover_text_at_pointer(&edges[0].1.clone());
                     }
-                    if let Some(galley) = best_fit_font(ui.ctx(), &edges[0].1.clone(), max_text_bb, 1.0, self.style.text_color, &id) {
-                        painter.galley(text_pos - galley.rect.center().to_vec2(), galley, self.style.text_color);
+                    if let Some(galley) = best_fit_font(
+                        ui.ctx(),
+                        &edges[0].1.clone(),
+                        max_text_bb,
+                        1.0,
+                        self.style.text_color,
+                        &id,
+                    ) {
+                        painter.galley(
+                            text_pos - galley.rect.center().to_vec2(),
+                            galley,
+                            self.style.text_color,
+                        );
                     }
                 }
             }
@@ -204,10 +282,29 @@ impl EnumPlot {
             //todo defuckme
             painter.rect_filled(line_label_rect, 0.0, ui.ctx().style().visuals.panel_fill);
             for (i, name) in enum_plot_ui.names.iter().enumerate() {
-                let top_y_val = response.rect.top() + self.style.margin + (self.style.line_height + self.style.line_spacing) * i as f32;
-                let max_label_bb = Rect::from_center_size(pos2(ui.clip_rect().left() + self.style.side_margin / 2.0, top_y_val + self.style.line_height * 0.5), vec2(self.style.side_margin - 5.0, self.style.line_height));
-                if let Some(galley) = best_fit_font(ui.ctx(), name, max_label_bb, 1.0, self.style.text_color, &id) {
-                    painter.galley(max_label_bb.center() - galley.rect.center().to_vec2(), galley, self.style.text_color);
+                let top_y_val = response.rect.top()
+                    + self.style.margin
+                    + (self.style.line_height + self.style.line_spacing) * i as f32;
+                let max_label_bb = Rect::from_center_size(
+                    pos2(
+                        ui.clip_rect().left() + self.style.side_margin / 2.0,
+                        top_y_val + self.style.line_height * 0.5,
+                    ),
+                    vec2(self.style.side_margin - 5.0, self.style.line_height),
+                );
+                if let Some(galley) = best_fit_font(
+                    ui.ctx(),
+                    name,
+                    max_label_bb,
+                    1.0,
+                    self.style.text_color,
+                    &id,
+                ) {
+                    painter.galley(
+                        max_label_bb.center() - galley.rect.center().to_vec2(),
+                        galley,
+                        self.style.text_color,
+                    );
                 }
             }
 
@@ -218,25 +315,23 @@ impl EnumPlot {
     }
 }
 
-
 fn best_fit_font(
     ctx: &egui::Context,
     text: &str,
     rect: Rect,
     min_size_pt: f32,
     color: Color32,
-    font: &FontId
+    font: &FontId,
 ) -> Option<Arc<Galley>> {
     let mut id = font.clone();
     loop {
-        let galley = ctx
-            .fonts(|f| {
-                // wrap_width == available width:
-                f.layout_no_wrap(text.to_owned(), id.clone(), color)
-            });
+        let galley = ctx.fonts_mut(|f| {
+            // wrap_width == available width:
+            f.layout_no_wrap(text.to_owned(), id.clone(), color)
+        });
 
         if galley.size().x <= rect.width() && galley.size().y <= rect.height() {
-            return Some(galley); 
+            return Some(galley);
         }
         id.size -= 2.5;
         if id.size < min_size_pt {
