@@ -1,5 +1,5 @@
 #![feature(min_specialization)]
-use egui::{Color32, FontFamily, FontId, Galley, Rect, Sense, Stroke, pos2, vec2};
+use egui::{Color32, FontFamily, FontId, Galley, Rect, Sense, Stroke, Vec2, pos2, vec2};
 use egui_plot::{Plot, PlotResponse, PlotUi};
 use std::{fmt::Display, sync::Arc};
 
@@ -159,9 +159,22 @@ impl EnumPlot {
                 size: self.style.text_height,
                 family: FontFamily::default(),
             };
+            let response = ui.allocate_rect(
+                Rect {
+                    min: plot_ret.response.rect.left_bottom(),
+                    max: plot_ret.response.rect.right_bottom()
+                        + Vec2::new(0.0, vertical_space_needed),
+                },
+                Sense::hover(),
+            );
+            let clip_rect = ui.clip_rect().intersect(response.rect);
+            let painter = ui.painter().with_clip_rect(clip_rect);
 
-            //todo make hover work nicely
-            let (response, painter) = ui.allocate_painter(ui.available_size(), Sense::hover());
+            // //todo make hover work nicely
+            // let (response, painter) = ui.allocate_painter(
+            //     Vec2::new(ui.available_width(), ui.available_height()),
+            //     Sense::hover(),
+            // );
             for (i, line) in enum_plot_ui.lines.iter().enumerate() {
                 let edges = line.get_edges_and_labels();
                 //todo add screen occlusion checking here, to avoid rendering stuff far off screen
